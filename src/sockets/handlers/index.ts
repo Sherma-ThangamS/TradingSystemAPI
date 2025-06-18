@@ -9,6 +9,8 @@ export const registerSocketHandlers = (io: Server) => {
     // Register user-specific handlers
     registerUserHandlers(io, socket);
 
+    console.log(io.eventNames());
+
     // Error handling
     socket.on("error", (error) => {
       console.error(`Socket error for ${socket.id}:`, error);

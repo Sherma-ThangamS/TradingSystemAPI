@@ -1,6 +1,7 @@
 import cookieParser from "cookie-parser";
 import csurf from "csurf";
 import express from "express";
+import { serverAdapter } from "./config/bull-board";
 import authRoutes from "./routes/auth.routes";
 import orderRoutes from "./routes/order.routes";
 import stockRoutes from "./routes/stock.routes";
@@ -30,6 +31,9 @@ app.use((req, res, next) => {
   }
   return csrfProtection(req, res, next);
 });
+
+// Mount Bull Board
+// app.use("/admin/queues", serverAdapter.getRouter());
 
 app.use("/auth", authRoutes);
 app.use("/stocks", stockRoutes);

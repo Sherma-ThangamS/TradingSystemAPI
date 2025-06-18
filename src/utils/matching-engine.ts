@@ -1,7 +1,6 @@
 import { Prisma } from "@prisma/client";
-import { eventEmitter } from "../events/emitter";
-import { EVENTS } from "../events/types";
 import { prisma } from "../models/prisma/client";
+import { publishOrderFilled, publishTradeExecuted } from "../events/redis-pubsub";
 
 export const matchOrders = async (stockId: string) => {
   const buyOrders = await prisma.order.findMany({
@@ -42,7 +41,7 @@ export const matchOrders = async (stockId: string) => {
           buyer_id: buy.user_id,
           seller_id: sell.user_id,
           stock_id: stockId,
-          price: new Prisma.Decimal(tradePrice),
+          price: tradePrice.toNumber(),
           quantity: matchedQuantity,
         });
 
@@ -95,23 +94,13 @@ export const matchOrders = async (stockId: string) => {
   }
 
   // ✅ Persist changes in one transaction
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx:any) => {
     // Insert trades
     for (const trade of trades) {
       const createdTrade = await tx.trade.create({ data: trade });
 
-      // Emit trade event
-      eventEmitter.emit(EVENTS.TRADE_EXECUTED, {
-        tradeId: createdTrade.id,
-        stockId,
-        price: trade.price,
-        quantity: trade.quantity,
-        buyerId: trade.buyer_id,
-        sellerId: trade.seller_id,
-        timestamp: createdTrade.timestamp?.toISOString(),
-      });
-
-      eventEmitter.emit("trade:executed", {
+      // Publish trade event to Redis
+      publishTradeExecuted({
         tradeId: createdTrade.id,
         stockId,
         price: trade.price,
@@ -132,7 +121,8 @@ export const matchOrders = async (stockId: string) => {
         },
       });
 
-      eventEmitter.emit(EVENTS.ORDER_FILLED, {
+      // Publish order filled event to Redis
+      publishOrderFilled({
         orderId: result.id,
         userId: result.user_id,
         remainingQuantity: result.quantity - result.full_filled_quantity,
@@ -161,7 +151,7 @@ export const matchOrders = async (stockId: string) => {
           stock_id: stockId,
           quantity: value.quantity,
           reserved_quantity: 0,
-          avg_price: new Prisma.Decimal(0), // Optionally compute average price
+          avg_price: 0, // Optionally compute average price
         },
       });
     }

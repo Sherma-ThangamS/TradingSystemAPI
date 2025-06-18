@@ -128,7 +128,7 @@ export const cancelOrder = async (orderId: number, userId: string) => {
   });
 
   // ✅ Emit event for order cancellation
-  eventEmitter.emit("order:cancelled", cancelledOrder);
+  eventEmitter.emit(EVENTS.ORDER_CANCELLED, cancelledOrder);
 
   return cancelledOrder;
 };
